@@ -1,0 +1,2 @@
+image	obs	obj	ra	dec	date-obs	jd	filter	stdnumb	zp	zper	seeing	skyval	skysig	ul_3sig	ul_5sig	mag	magerr	aper_dia_pix
+hdCalib-LOAO-GRB221009A-20221010-041854-B-300.com.fits	LOAO	GRB221009A	288.2643629	19.7734352	2022-10-10T04:18:54.720	2459862.6798	B	96	26.895	0.049	2.742	5797.23	36.468	20.21	19.655	20.444	0.483	4.87
