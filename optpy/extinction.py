@@ -20,10 +20,10 @@ def galactic_extinction(bandpass, system = ["SDSS", "Landolt", "UKIRT", "PS1"]):
         return None
 
 
-def host_galaxy_extinction(model, frequency=None):
+def host_galaxy_extinction(model, nu=None, z=None):
     tab = asc.read(f"{SCRIPT_DIR}/data/host_galaxy_extinction.csv")
     eta_model = interp1d(tab[f"nu_{model}"], tab[f"eta_{model}"])
-    if frequency is not None:
-        return eta_model(frequency)
+    if (nu is not None) and (z is not None):
+        return eta_model(nu/(1.+z))
     else:
         return eta_model

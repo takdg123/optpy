@@ -3,138 +3,120 @@ import matplotlib.pyplot as plt
 from . import const
 from . import utils
 import astropy.units as u
-from .extinction import host_galaxy_extinction
+from astropy.table import Table
 
-def set_flux_axis(ax, table):
-    if "AB" in table.keys():
-        unit = "AB"
+from . import fit
+
+def set_flux_axis(flux_unit, ax):
+    if flux_unit == "AB":
         ax.invert_yaxis()
         ax.set_ylabel(r"AB", fontsize=15)
-    elif "flux" in table.keys():
-        unit = "flux"
+        
+    elif flux_unit == "Jy":
         ax.set_yscale("log")
         ax.set_ylabel(r"Flux [Jy]", fontsize=15)
         
-    elif "e2dnde" in table.keys():
-        unit = "e2dnde"
+    elif flux_unit == "e2dnde":
         ax.set_yscale("log")
         ax.set_ylabel(r"Flux [erg/cm$^2$/s]", fontsize=15)
         
-    return ax, unit
+    return ax
 
-def set_time_axis(ax, table, time_unit=None):
-    if time_unit is None:
-        time_unit = table["time"].unit
-        t_conv = 1
-        ax.set_xlabel(f"Time since trigger [{time_unit}]", fontsize=15)    
-    elif time_unit == "day":
-        t_conv = table["time"].unit.to(u.day)
-        ax.set_xlabel(f"Time since trigger [{u.day}]", fontsize=15)
-    elif time_unit == "second":
-        t_conv = table["time"].unit.to(u.second)
-        ax.set_xlabel(f"Time since trigger [{u.second}]", fontsize=15)
-    ax.set_xscale("log")
-    return ax, t_conv
-
-def set_energy_axis(ax, table):
-    if "A" in table.keys():
-        unit = "A"
-        ax.set_xscale("log")
+def set_energy_axis(energy_unit, ax):
+    if energy_unit == "lambda":
         ax.set_xlabel(r"Wavelength [A]", fontsize=15)
-    elif "frequency" in table.keys():
-        unit = "frequency"
-        table[unit] = table[unit].to(u.Hz)
-        table[f"{unit}_err"] = table[f"{unit}_err"].to(u.Hz)
-        ax.set_xscale("log")
-        ax.set_xlabel(r"Frequency [Hz]", fontsize=15)
-    elif "e2dnde" in table.keys():
-        unit = "energy"
-        ax.set_xscale("log")
-        ax.set_xlabel(r"Energy [eV]", fontsize=15)
-        
-    return ax, unit
 
-def plot_lightcurve(table, time_unit = None, ax = None):
+    elif energy_unit == "Hz":
+        ax.set_xlabel(r"Frequency [Hz]", fontsize=15)
+
+    elif energy_unit == "eV":
+        ax.set_xlabel(r"Energy [eV]", fontsize=15)
+    
+    ax.set_xscale("log")
+    return ax
+
+def plot_lightcurve(table, show_plot = True, flux_unit="Jy", time_unit=None, ax = None, t_shift=0, **kwargs):
+    
     if ax is None:
         ax = plt.gca()
     
-
-    ax, unit = set_flux_axis(ax, table)
-    ax, t_conv = set_time_axis(ax, table, time_unit=time_unit)
-    flags = (~np.isnan(table[unit]))*(table[unit]>0)
+    ax = set_flux_axis(flux_unit, ax)
+    
+    flags = (~np.isnan(table[flux_unit]))*(table[flux_unit]>0)
     table = table[flags]
 
-    for f in set(table["filter"]):
+    ls = kwargs.pop("ls", ":")
+    for f in np.unique(table["filter"]):
         lc = table[table["filter"]==f]
-        
-        lc = lc
-        if len(lc)>=4:
-            if unit == "e2dnde" or unit == "flux":
-                from grbpy.external.linearfit import LinearFit
-                t = np.logspace(np.log10(lc[0]["time"]/t_conv), np.log10(lc[-1]["time"]/t_conv), 100)
-                l = LinearFit(lc["time"]/t_conv, lc[unit], y_err= lc[f"{unit}_err"], logx=True, logy=True)
-                l.fit(model="linear")
-                prop = ax.errorbar(lc["time"]/t_conv, lc[unit], 
-                 yerr=lc[f"{unit}_err"], ls=":", marker="x", color=lc["color"][0],
-                 label=r"{} ($\alpha$ = {:.2f}$\pm${:.2f})".format(f, -l.p["m"], l.perr["m"]))
-                ax.plot(t, l.model(t), color=prop[0].get_color(), ls="-", lw=0.5)
+        lc["time"] += t_shift
 
+        if time_unit == "day":
+            t_conv = const.sec2day
         else:
-            prop = ax.errorbar(lc["time"]/t_conv, lc[unit], color=lc["color"][0], 
-                               yerr=lc[f"{unit}_err"], ls=":", marker="x", label="{}".format(f))
-
-    #     ax.errorbar(lc["date-obs"][~flags]/utils.sec2day, lc["ul_3sig"][~flags], 
-    #                    yerr = lc["ul_3sig"][~flags]*0.5, c=prop[0].get_color(),
-    #                    lolims=True, ls="")
+            t_conv = 1
         
+        if len(lc)>=4 and (flux_unit == "e2dnde" or flux_unit == "Jy"):
+            fit_result, l = fit.temporal_fit(lc, t_conv=t_conv, return_fit=True, flux_unit=flux_unit)
+            prop = ax.errorbar(lc["time"]*t_conv, lc[flux_unit], 
+             yerr=lc[f"{flux_unit}_err"], ls=ls, marker="+", color=lc["color"][0],
+             label=r"{} ($\alpha$ = {:.2f}$\pm${:.2f})".format(f, -fit_result["alpha"][0], fit_result["alpha_err"][0]), **kwargs)
+            ax.plot(lc["time"]*t_conv, l.model(lc["time"]*t_conv), color=prop[0].get_color(), ls="-", lw=0.5)
+        else:
+            prop = ax.errorbar(lc["time"]*t_conv, lc[flux_unit], color=lc["color"][0], 
+                               yerr=lc[f"{flux_unit}_err"], ls=ls, marker="+", label="{}".format(f), **kwargs)
+            #     ax.errorbar(lc["date-obs"][~flags]*const.sec2day, lc["ul_3sig"][~flags], 
+            #                    yerr = lc["ul_3sig"][~flags]*0.5, c=prop[0].get_color(),
+            #                    lolims=True, ls="")
+    
+    ax.set_xlabel(f"Time since trigger [{time_unit}]", fontsize=15)
+    ax.set_xscale("log")
+
     ax.legend(ncols=2, fontsize=8)
     ax.grid(which="major")
     ax.grid(which="minor", ls=":", alpha=0.5)
 
-
-def plot_spectrum(table, ax=None):
+def plot_spectrum(table, model="MW", show_plot=True, flux_unit = "Jy", energy_unit = "Hz", ax=None, color=None, z=None, **kwargs):
+    
     if ax is None:
         ax = plt.gca()
-    
-    clist = utils.make_clist(max(table["t_index"])+1, palette='viridis')
-    ax, f_unit = set_flux_axis(ax, table)
-    ax, e_unit = set_energy_axis(ax, table)
 
-    flags = (~np.isnan(table[f_unit]))*(table[f_unit]>0)
+    if color is None:
+        clist = utils.make_clist(max(table["t_index"])+1, palette='viridis')
+    else:
+        clist = color
+
+    ax = set_flux_axis(flux_unit, ax)
+    ax = set_energy_axis(energy_unit, ax)
+
+    flags = (~np.isnan(table[flux_unit]))*(table[flux_unit]>0)
     table = table[flags]
 
-    for i, c in zip(np.unique(table["t_index"]), clist):
+    for i in np.unique(table["t_index"]):
         spec = table[table["t_index"] == i]
-        spec.sort(e_unit)
+        spec.sort(energy_unit)
 
         if spec["time"].unit == u.second:
-            t_ave = np.average(spec["time"])/const.sec2day
+            t_ave = np.average(spec["time"])*const.sec2day
         else:
             t_ave = np.average(spec["time"])
         
-        if len(spec)>=4 and f_unit=="flux" and e_unit=="frequency":
+        if len(spec)>=4 and flux_unit=="Jy" and energy_unit=="Hz":
 
-            from grbpy.external.linearfit import LinearFit
-
-            eta = host_galaxy_extinction("MW", spec["frequency"].to(u.Hz))*0.15/1.086
+            fit_result, l = fit.spectral_fit(spec, z=z, model=model, Av = kwargs.pop("Av", 0.15), return_fit=True)
             
-            e = np.logspace(np.log10(spec[0]["frequency"]), np.log10(spec[-1]["frequency"]), 100)
-
-            l = LinearFit(spec["frequency"]/5e14, 
-                      spec["flux"]*np.exp(-eta), x_err=spec["frequency_err"]/5e14,
-                      y_err=spec["flux_err"]*np.exp(-eta), logx=True, logy=True)
-            l.fit(model="linear")
-            prop = ax.errorbar(spec[e_unit], spec[f_unit], 
-                               xerr=spec[f"{e_unit}_err"],
-                               yerr=spec[f"{f_unit}_err"], ls=":", 
-                               marker="x", label=r"{:.1f} days, $\beta$ ={:.2f}$\pm${:.2f}".format(t_ave,-l.p["m"], l.perr["m"]))
-            ax.plot(e, l.model(e/(5e14))/np.exp(-host_galaxy_extinction("MW", e)*0.15/1.086), color=prop[0].get_color(), ls="-", lw=0.5)
+            prop = ax.errorbar(spec[energy_unit], spec[flux_unit], 
+                               xerr=spec[f"{energy_unit}_err"],
+                               yerr=spec[f"{flux_unit}_err"], ls=":", color=clist[i],
+                               marker="+", label=r"{:.1f} days, $\beta$ ={:.2f}$\pm${:.2f}".format(t_ave,-fit_result["beta"][0], fit_result["beta_err"][0]))
+            ax.plot(spec[energy_unit], l.model(spec[energy_unit], *l.p), color=prop[0].get_color(), ls="-", lw=0.5)
         elif len(spec)>1:
-            prop = ax.errorbar(spec[e_unit], spec[f_unit], 
-                               xerr=spec[f"{e_unit}_err"],
-                               yerr=spec[f"{f_unit}_err"], ls=":", 
-                               marker="x", label="{:.1f} days".format(t_ave))
+        
+            prop = ax.errorbar(spec[energy_unit], spec[flux_unit], 
+                               xerr=spec[f"{energy_unit}_err"],
+                               yerr=spec[f"{flux_unit}_err"], ls=":", color=clist[i],
+                               marker="+", label="{:.1f} days".format(t_ave))
     ax.set_xscale("log")
     ax.legend(ncols=2, fontsize=8)
     ax.grid(which="major")
     ax.grid(which="minor", ls=":", alpha=0.5)
+

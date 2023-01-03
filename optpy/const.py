@@ -1,3 +1,7 @@
+
+sec2day = 1./(24*60*60)
+Jy2erg = 1e-23
+
 tab_dtype = [('image', '<U62'), 
             ('obs', '<U4'), 
             ('obj', '<U10'), 
@@ -84,5 +88,3 @@ filter_dict = dict(
         c='magenta'
     ),
 )
-
-sec2day = 24*60*60.

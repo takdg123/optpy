@@ -5,13 +5,28 @@ import astropy.units as u
 def lam2nu(lam):
 	from astropy import constants as const
 	c = const.c
+	if hasattr(lam, "unit"):
+		if lam.unit is not None:
+			return c.to(u.Angstrom*u.Hz)/(lam)
+	
 	return c.to(u.Angstrom*u.Hz)/(lam*u.Angstrom)
-
 
 def nu2eV(nu):
 	from astropy import constants as const
 	h = const.h
+	if hasattr(nu, "unit"):
+		if nu.unit is not None:
+			return (h*nu).to(u.eV)
 	return (h*nu*u.Hz).to(u.eV)
+
+
+def eV2nu(eV):
+	from astropy import constants as const
+	h = const.h
+	if hasattr(eV, "unit"):
+		if eV.unit is not None:
+			return (eV/h).to(u.Hz)
+	return (eV*u.eV/h).to(u.Hz)
 
 
 def lam2eV(lam):
@@ -24,11 +39,18 @@ def AB2Flux(mag, magerr, units = "cgs"):
         return np.nan, np.nan
     else:
         samples = np.random.normal(loc = mag, scale=magerr, size=10000)
-        flx = (mag*u.ABmag).to(u.Jy)
-        flx_sample = (samples*u.ABmag).to(u.Jy)
+        
+        if units == "Jy":
+        	flx = (mag*u.ABmag).to(u.Jy)
+	        flx_sample = (samples*u.ABmag).to(u.Jy)
+	        flx_err = np.std(flx_sample.value)
+        	return flx.value, flx_err
+        elif units == "cgs":
+        	flx = (mag*u.ABmag).to(u.erg/u.s/u.cm**2/u.Hz)
+	        flx_sample = (samples*u.ABmag).to(u.erg/u.s/u.cm**2/u.Hz)
+	        flx_err = np.std(flx_sample.value)
+        	return flx.value, flx_err
 
-        flx_err = np.std(flx_sample.value)
-        return flx.value, flx_err
 
 def make_clist(n, palette='Spectral'):
     import seaborn as sns

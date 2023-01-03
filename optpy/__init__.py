@@ -1,4 +1,4 @@
-from .basic import *
+from .core import *
 from .extinction import *
 from .plotting import *
 
