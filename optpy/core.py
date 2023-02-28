@@ -14,9 +14,15 @@ from .extinction import galactic_extinction
 
 from astropy.io import ascii as asc
 
-def read_data(data, full_output = False, t_shift = 0, 
-		apply_extinction=True, **kwargs):
+from glob import glob
 
+from pathlib import Path
+
+def read_data(path, full_output = False, t_shift = 0, 
+		apply_extinction=True, **kwargs):
+	
+	p = Path(path)
+	data = glob(str(p.absolute())+"/*.dat")
 	optical_data = np.atleast_1d(data)
 
 	load_table = Table(dtype=const.tab_dtype)
@@ -29,10 +35,12 @@ def read_data(data, full_output = False, t_shift = 0,
 	if full_output:
 		table = load_table
 	else:
-		table = Table([load_table["filter"],
-		load_table["date-obs"],
-		load_table["mag"], load_table["magerr"],
-		load_table["ul_3sig"]])
+		table = Table([load_table["obs"], 
+			load_table["filter"],
+			load_table["date-obs"],
+			load_table["mag"], 
+			load_table["magerr"],
+			load_table["ul_3sig"]])
 
 
 	table.add_column(UTC2MET(table["date-obs"])+t_shift, name="time")
@@ -42,6 +50,7 @@ def read_data(data, full_output = False, t_shift = 0,
 	table.add_column(idx, name="t_index")
 	
 	add_info = [list(const.filter_dict[f].values()) for f in table["filter"]]
+	
 	table.add_columns(list(zip(*add_info)), names=["lam", "bdw", "color"])
 	table["bdw"] /= 2
 

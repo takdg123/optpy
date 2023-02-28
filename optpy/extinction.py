@@ -10,6 +10,8 @@ def galactic_extinction(bandpass, system = ["SDSS", "Landolt", "UKIRT", "PS1"]):
     
     if bandpass == "Ks":
         bandpass = "K"
+    elif bandpass == "Y":
+        bandpass = "y"
     
     band = [str(sys) + " " + str(bandpass) for sys in system]
     unique_band = [tab[tab["Bandpass"] == b] for b in band if b in tab["Bandpass"]]
@@ -20,10 +22,19 @@ def galactic_extinction(bandpass, system = ["SDSS", "Landolt", "UKIRT", "PS1"]):
         return None
 
 
-def host_galaxy_extinction(model, nu=None, z=None):
+def host_galaxy_extinction(model, nu=None, z=None, show_plot=False, **kwargs):
     tab = asc.read(f"{SCRIPT_DIR}/data/host_galaxy_extinction.csv")
-    eta_model = interp1d(tab[f"nu_{model}"], tab[f"eta_{model}"])
-    if (nu is not None) and (z is not None):
-        return eta_model(nu/(1.+z))
+    if show_plot:
+        import matplotlib.pyplot as plt
+        ax = plt.gca()
+        ax.plot(tab[f"nu_{model}"], tab[f"eta_{model}"], **kwargs)
+        ax.set_xlabel("Rest frequency [Hz]", fontsize=13)
+        ax.set_ylabel(r"$\eta$($\nu$)", fontsize=13)
+        ax.set_xscale("log")
+
     else:
-        return eta_model
+        eta_model = interp1d(tab[f"nu_{model}"], tab[f"eta_{model}"])
+        if (nu is not None) and (z is not None):
+            return eta_model(nu*(1.+z))
+        else:
+            return eta_model

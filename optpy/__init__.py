@@ -1,6 +1,7 @@
 from .core import *
 from .extinction import *
 from .plotting import *
+from .plugin import *
 
 from . import const
 from . import utils

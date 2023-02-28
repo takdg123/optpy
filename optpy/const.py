@@ -1,3 +1,4 @@
+import astropy.units as u
 
 sec2day = 1./(24*60*60)
 Jy2erg = 1e-23
@@ -66,7 +67,7 @@ filter_dict = dict(
         bdw=997.72,
         c='indigo'
     ),
-    y=dict(
+    Y=dict(
         lam=9613.60,
         bdw=638.98,
         c='navy'

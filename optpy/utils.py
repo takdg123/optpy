@@ -1,10 +1,10 @@
 import numpy as np
 import astropy.units as u
-
+from . import const
 
 def lam2nu(lam):
-	from astropy import constants as const
-	c = const.c
+	from astropy import constants as c
+	c = c.c
 	if hasattr(lam, "unit"):
 		if lam.unit is not None:
 			return c.to(u.Angstrom*u.Hz)/(lam)
@@ -12,26 +12,29 @@ def lam2nu(lam):
 	return c.to(u.Angstrom*u.Hz)/(lam*u.Angstrom)
 
 def nu2eV(nu):
-	from astropy import constants as const
-	h = const.h
+	from astropy import constants as c
+	h = c.h
 	if hasattr(nu, "unit"):
 		if nu.unit is not None:
 			return (h*nu).to(u.eV)
 	return (h*nu*u.Hz).to(u.eV)
 
-
 def eV2nu(eV):
-	from astropy import constants as const
-	h = const.h
+	from astropy import constants as c
+	h = c.h
 	if hasattr(eV, "unit"):
 		if eV.unit is not None:
 			return (eV/h).to(u.Hz)
 	return (eV*u.eV/h).to(u.Hz)
 
+def JyHz2ErgEV():
+	from astropy import constants as c
+	h = c.h
+	return const.Jy2erg*eV2nu(1).value
 
 def lam2eV(lam):
-	from astropy import constants as const
-	h = const.h
+	from astropy import constants as c
+	h = c.h
 	return (h*lam2nu(lam)).to(u.eV)
 
 def AB2Flux(mag, magerr, units = "cgs"):
@@ -92,8 +95,8 @@ def make_tbins(time, ttol = 0.05, output="index"):
 				break
 
 	if output == "index":
-		return indices
+		return np.array(indices)
 	elif output == "time":
-		return t_center
+		return np.array(t_center)
 	elif output == "full":
-		return t_center, indices, time_bins
+		return np.array(t_center), np.array(indices), time_bins
