@@ -40,7 +40,7 @@ class pl_fit:
 
     def likelihood(self, k, m, Av):
         xerr = m/self.nu*self.flux*self.nu_err
-        return sum((self.flux-self.model(self.nu, k, m, Av))**2./(self.flux_err**2.+(xerr)**2.))
+        return sum((self.flux-self.model(self.nu, k, m, Av))**2./(self.flux_err**2.+xerr**2.))
 
     def fit(self):
         if not(self.flag):
